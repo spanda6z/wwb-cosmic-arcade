@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Wild White Buffalo ($WWB) — Cosmic Arcade</title>
+<style>
+  :root {
+    --cosmic-dark: #0d021a;
+    --neon-purple: #bd00ff;
+    --neon-cyan: #00f0ff;
+    --neon-green: #39ff14;
+    --panel-grey: #2a2b3d;
+    --panel-dark: #1c1d2e;
+    --boot-bg: #030008;
+    --cabinet-metal: #1a1b28;
+    --lever-red: #ff1a3c;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--cosmic-dark);
+    font-family: 'Courier New', Courier, monospace;
+    color: var(--neon-green);
+  }
+
+  /* ========== PHASE A: BOOTLOADER ========== */
+  #system-bootloader {
+    position: fixed;
+    inset: 0;
+    background: var(--boot-bg);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+    transition: opacity 0.5s ease;
+  }
+
+  #system-bootloader.fade-out {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .boot-terminal {
+    width: min(90vw, 640px);
+    background: #000;
+    border: 2px solid var(--neon-green);
+    box-shadow: 0 0 20px rgba(57, 255, 20, 0.3);
+    padding: 1.5rem;
+    font-size: clamp(11px, 2.2vw, 14px);
+    line-height: 1.6;
+    min-height: 220px;
+  }
+
+  .boot-line {
+    opacity: 0;
+    white-space: pre-wrap;
+    margin-bottom: 0.35rem;
+  }
+
+  .boot-line.visible {
+    opacity: 1;
+    animation: typeIn 0.4s steps(20, end);
+  }
+
+  .boot-line .ok {
+    color: var(--neon-green);
+  }
+
+  .boot-line .warn {
+    color: #ffcc00;
+  }
+
+  .boot-line .info {
+    color: var(--neon-cyan);
+  }
+
+  @keyframes typeIn {
+    from { width: 0; }
+    to { width: 100%; }
+  }
+
+  .boot-progress-wrap {
+    width: min(90vw, 640px);
+    margin-top: 1.5rem;
+    height: 18px;
+    background: #111;
+    border: 1px solid var(--neon-green);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .boot-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #0a3, var(--neon-green));
+    box-shadow: 0 0 12px var(--neon-green);
+    transition: width 1.8s cubic-bezier(0.2, 0.8, 0.3, 1);
+  }
+
+  .boot-progress-bar.loading {
+    width: 100%;
+  }
+
+  #insert-coin-btn {
+    margin-top: 2rem;
+    display: none;
+    padding: 0.9rem 2.2rem;
+    font-family: inherit;
+    font-size: clamp(14px, 3vw, 18px);
+    font-weight: bold;
+    letter-spacing: 0.15em;
+    color: var(--neon-green);
+    background: transparent;
+    border: 3px dashed var(--neon-green);
+    cursor: pointer;
+    text-transform: uppercase;
+    animation: blinkBtn 1.1s step-end infinite;
+    box-shadow: 0 0 18px rgba(57, 255, 20, 0.4);
+  }
+
+  #insert-coin-btn.visible {
+    display: block;
+  }
+
+  @keyframes blinkBtn {
+    0%, 100% { opacity: 1; border-color: var(--neon-green); }
+    50% { opacity: 0.55; border-color: #1a5; }
+  }
+
+  /* ========== MAIN ARCADE SCENE ========== */
+  #arcade-scene {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background:
+      radial-gradient(ellipse at 50% 120%, #2a0a3a 0%, transparent 55%),
+      linear-gradient(180deg, #0d021a 0%, #1a0528 40%, #2d0a1a 100%);
+    overflow: hidden;
+  }
+
+  .desert-horizon {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 28%;
+    background: linear-gradient(180deg, transparent 0%, #1a0a12 30%, #2a1520 100%);
+    pointer-events: none;
+  }
+
+  .desert-horizon::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--neon-purple), var(--neon-cyan), var(--neon-purple), transparent);
+    opacity: 0.6;
+    box-shadow: 0 0 20px var(--neon-purple);
+  }
+
+  .stars {
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 10% 20%, #fff 50%, transparent),
+      radial-gradient(1px 1px at 30% 45%, #bd00ff 50%, transparent),
+      radial-gradient(1.5px 1.5px at 70% 15%, #00f0ff 50%, transparent),
+      radial-gradient(1px 1px at 85% 60%, #fff 50%, transparent),
+      radial-gradient(1px 1px at 50% 80%, #39ff14 50%, transparent),
+      radial-gradient(1px 1px at 20% 70%, #fff 50%, transparent);
+    opacity: 0.7;
+    pointer-events: none;
+    animation: twinkle 4s ease-in-out infinite alternate;
+  }
+
+  @keyframes twinkle {
+    from { opacity: 0.5; }
+    to { opacity: 0.85; }
+  }
+
+  .cabinet {
+    position: relative;
+    width: min(96vw, 520px);
+    height: min(94vh, 820px);
+    display: flex;
+    flex-direction: column;
+    background: var(--cabinet-metal);
+    border-radius: 12px 12px 4px 4px;
+    box-shadow:
+      0 0 0 4px #111,
+      0 0 0 8px #333,
+      0 20px 60px rgba(0,0,0,0.8),
+      inset 0 0 40px rgba(0,0,0,0.6);
+    overflow: hidden;
+    z-index: 10;
+  }
+
+  .cabinet-header {
+    background: linear-gradient(180deg, #3a1a5a 0%, #1a0a2a 100%);
+    padding: 0.6rem 1rem;
+    text-align: center;
+    border-bottom: 3px solid var(--neon-purple);
+    box-shadow: 0 0 25px rgba(189, 0, 255, 0.5);
+    position: relative;
+  }
+
+  .cabinet-header h1 {
+    font-size: clamp(13px, 3.2vw, 18px);
+    letter-spacing: 0.18em;
+    color: #fff;
+    text-shadow:
+      0 0 8px var(--neon-purple),
+      0 0 20px var(--neon-purple);
+    text-transform: uppercase;
+  }
+
+  .cabinet-header .sub {
+    font-size: clamp(9px, 2vw, 11px);
+    color: var(--neon-cyan);
+    letter-spacing: 0.3em;
+    margin-top: 2px;
+    opacity: 0.9;
+  }
+
+  .crt-bezel {
+    flex: 1;
+    margin: 10px 14px 6px;
+    background: #050508;
+    border-radius: 8px;
+    border: 6px solid #1a1a22;
+    box-shadow:
+      inset 0 0 30px #000,
+      0 0 0 2px #333,
+      0 0 25px rgba(189, 0, 255, 0.25);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .crt-bezel.jackpot-glow {
+    animation: jackpotPulse 0.6s ease;
+    box-shadow:
+      inset 0 0 40px rgba(57, 255, 20, 0.3),
+      0 0 0 2px var(--neon-green),
+      0 0 40px rgba(57, 255, 20, 0.7);
+  }
+
+  @keyframes jackpotPulse {
+    0%, 100% { transform: scale(1); }
+    30% { transform: scale(1.015); }
+    60% { transform: scale(0.995); }
+  }
+
+  .screen-scanlines {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 3px,
+      rgba(0, 0, 0, 0.25) 3px,
+      rgba(0, 0, 0, 0.25) 4px
+    );
+    pointer-events: none;
+    z-index: 20;
+    animation: flicker 0.12s infinite;
+  }
+
+  @keyframes flicker {
+    0% { opacity: 0.92; }
+    50% { opacity: 1; }
+    100% { opacity: 0.88; }
+  }
+
+  .crt-bezel::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%);
+    pointer-events: none;
+    z-index: 15;
+  }
+
+  .crt-banner {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0a0a12;
+    border-bottom: 1px solid #222;
+    font-size: clamp(11px, 2.4vw, 14px);
+    letter-spacing: 0.12em;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 8px var(--neon-cyan);
+    z-index: 5;
+    transition: color 0.3s, text-shadow 0.3s, background 0.3s;
+  }
+
+  .crt-banner.jackpot {
+    color: var(--neon-green);
+    text-shadow: 0 0 12px var(--neon-green);
+    background: #051a08;
+    animation: bannerFlash 0.4s ease 3;
+  }
+
+  .crt-banner.combo {
+    color: var(--neon-cyan);
+    text-shadow: 0 0 12px var(--neon-cyan);
+  }
+
+  @keyframes bannerFlash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .high-scores-panel {
+    padding: 0.5rem 0.8rem 0.3rem;
+    font-size: clamp(10px, 2.1vw, 12px);
+    z-index: 5;
+  }
+
+  .high-scores-panel .title {
+    color: var(--neon-purple);
+    letter-spacing: 0.2em;
+    margin-bottom: 0.35rem;
+    text-align: center;
+    font-size: 0.95em;
+  }
+
+  .score-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.18rem 0;
+    border-bottom: 1px dashed rgba(189, 0, 255, 0.25);
+    color: #c0c0d0;
+  }
+
+  .score-row .rank {
+    color: var(--neon-green);
+    width: 2.2em;
+  }
+
+  .score-row .label {
+    flex: 1;
+    text-align: left;
+    padding-left: 0.4rem;
+  }
+
+  .score-row .value {
+    color: var(--neon-cyan);
+    font-weight: bold;
+  }
+
+  .slot-machine-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem;
+    z-index: 5;
+    position: relative;
+  }
+
+  .reels-frame {
+    display: flex;
+    gap: 6px;
+    background: #0a0a10;
+    padding: 10px;
+    border: 3px solid #333;
+    border-radius: 6px;
+    box-shadow:
+      inset 0 0 20px #000,
+      0 0 15px rgba(0, 240, 255, 0.15);
+  }
+
+  .reel {
+    width: clamp(64px, 18vw, 88px);
+    height: clamp(64px, 18vw, 88px);
+    background: #111;
+    border: 2px solid #444;
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .reel-inner {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.08s linear;
+  }
+
+  .reel.spinning .reel-inner {
+    animation: spinReel 0.1s linear infinite;
+  }
+
+  @keyframes spinReel {
+    0% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+    100% { transform: translateY(0); }
+  }
+
+  .symbol {
+    width: 48px;
+    height: 48px;
+    position: relative;
+    image-rendering: pixelated;
+  }
+
+  .symbol-buffalo {
+    background:
+      linear-gradient(90deg, transparent 8px, #ddd 8px, #ddd 12px, transparent 12px, transparent 36px, #ddd 36px, #ddd 40px, transparent 40px) 0 2px / 48px 6px no-repeat,
+      linear-gradient(#eee 0 0) 10px 8px / 28px 8px no-repeat,
+      linear-gradient(#f5f5f5 0 0) 8px 16px / 32px 20px no-repeat,
+      radial-gradient(circle, #00f0ff 0%, #00a0c0 70%, transparent 71%) 14px 20px / 8px 8px no-repeat,
+      radial-gradient(circle, #00f0ff 0%, #00a0c0 70%, transparent 71%) 26px 20px / 8px 8px no-repeat,
+      linear-gradient(#ccc 0 0) 16px 32px / 16px 8px no-repeat,
+      linear-gradient(#ddd 0 0) 12px 40px / 24px 6px no-repeat;
+  }
+
+  .symbol-sol {
+    background:
+      radial-gradient(circle, transparent 55%, #bd00ff 56%, #bd00ff 68%, transparent 69%) center / 44px 44px no-repeat,
+      radial-gradient(circle, #00f0ff 0%, #0080a0 60%, transparent 61%) center / 22px 22px no-repeat,
+      linear-gradient(135deg, transparent 40%, #fff 40%, #fff 55%, transparent 55%) center / 18px 18px no-repeat;
+  }
+
+  .symbol-wild {
+    background:
+      radial-gradient(circle, #39ff14 0%, #1a8 50%, transparent 51%) center / 20px 20px no-repeat,
+      conic-gradient(from 0deg, transparent 10%, #39ff14 15%, transparent 20%, transparent 35%, #39ff14 40%, transparent 45%, transparent 60%, #39ff14 65%, transparent 70%, transparent 85%, #39ff14 90%, transparent 95%) center / 42px 42px no-repeat;
+  }
+
+  .symbol-blank {
+    background:
+      linear-gradient(45deg, #222 25%, transparent 25%, transparent 75%, #222 75%) 0 0 / 12px 12px,
+      linear-gradient(-45deg, #222 25%, transparent 25%, transparent 75%, #222 75%) 0 0 / 12px 12px;
+    opacity: 0.4;
+  }
+
+  .lever-assembly {
+    position: absolute;
+    right: -8px;
+    top: 42%;
+    width: 36px;
+    height: 110px;
+    z-index: 30;
+    cursor: pointer;
+    transform-origin: bottom center;
+    transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .lever-assembly.pulled {
+    transform: rotateX(65deg) scaleY(0.55);
+  }
+
+  .lever-rod {
+    position: absolute;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 8px;
+    height: 70px;
+    background: linear-gradient(90deg, #555, #999, #555);
+    border-radius: 3px;
+    box-shadow: 1px 0 3px #000;
+  }
+
+  .lever-ball {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 28px;
+    height: 28px;
+    background: radial-gradient(circle at 35% 30%, #ff6a7a, var(--lever-red) 50%, #8a0018);
+    border-radius: 50%;
+    box-shadow:
+      0 0 10px rgba(255, 26, 60, 0.6),
+      inset -2px -2px 6px rgba(0,0,0,0.4);
+    border: 2px solid #4a000c;
+  }
+
+  .lever-base {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 22px;
+    height: 16px;
+    background: #333;
+    border-radius: 3px 3px 0 0;
+    border: 1px solid #555;
+  }
+
+  .control-desk {
+    background: linear-gradient(180deg, var(--panel-grey) 0%, var(--panel-dark) 100%);
+    padding: 0.7rem 0.9rem 0.5rem;
+    border-top: 3px solid #111;
+    box-shadow: inset 0 8px 20px rgba(0,0,0,0.4);
+  }
+
+  .desk-label {
+    font-size: 9px;
+    letter-spacing: 0.25em;
+    color: #666;
+    text-align: center;
+    margin-bottom: 0.4rem;
+  }
+
+  .token-dispenser {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    margin-bottom: 0.6rem;
+  }
+
+  .input-cluster {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .input-cluster label {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    color: var(--neon-cyan);
+  }
+
+  .input-cluster input,
+  .input-cluster .led-out {
+    background: #0a0a10;
+    border: 2px solid #333;
+    color: var(--neon-green);
+    font-family: inherit;
+    font-size: clamp(13px, 3vw, 16px);
+    padding: 0.35rem 0.5rem;
+    text-align: right;
+    border-radius: 3px;
+    box-shadow: inset 0 0 8px #000;
+  }
+
+  .input-cluster input:focus {
+    outline: none;
+    border-color: var(--neon-purple);
+    box-shadow: 0 0 10px rgba(189, 0, 255, 0.4), inset 0 0 8px #000;
+  }
+
+  .input-cluster .led-out {
+    color: var(--neon-cyan);
+    min-height: 1.8em;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .arcade-btn {
+    font-family: inherit;
+    font-size: clamp(10px, 2.2vw, 12px);
+    font-weight: bold;
+    letter-spacing: 0.08em;
+    padding: 0.55rem 0.7rem;
+    color: #fff;
+    background: linear-gradient(180deg, #5a2a8a 0%, #3a1a5a 100%);
+    border: none;
+    border-radius: 4px;
+    border-bottom: 4px solid #1a0a2a;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: transform 0.08s, border-bottom-width 0.08s, margin-top 0.08s;
+    box-shadow: 0 0 12px rgba(189, 0, 255, 0.3);
+    align-self: flex-end;
+    white-space: nowrap;
+  }
+
+  .arcade-btn:active {
+    transform: translateY(3px);
+    border-bottom-width: 1px;
+    margin-top: 3px;
+  }
+
+  .arcade-btn.stamp {
+    background: linear-gradient(180deg, #2a6a2a 0%, #1a4a1a 100%);
+    border-bottom-color: #0a2a0a;
+    box-shadow: 0 0 12px rgba(57, 255, 20, 0.25);
+  }
+
+  .radio-dispatch {
+    display: flex;
+    gap: 8px;
+    margin-top: 0.35rem;
+  }
+
+  .radio-btn {
+    flex: 1;
+    font-family: inherit;
+    font-size: clamp(9px, 2vw, 11px);
+    letter-spacing: 0.06em;
+    padding: 0.5rem 0.4rem;
+    color: #ddd;
+    background: linear-gradient(180deg, #2a2b3d 0%, #1a1b28 100%);
+    border: 2px solid #444;
+    border-radius: 6px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: box-shadow 0.2s, border-color 0.2s, color 0.2s;
+    position: relative;
+  }
+
+  .radio-btn:hover {
+    color: #fff;
+    border-color: var(--neon-cyan);
+    box-shadow:
+      0 0 18px rgba(0, 240, 255, 0.45),
+      inset 0 0 12px rgba(0, 240, 255, 0.1);
+  }
+
+  .radio-btn.twitter:hover {
+    border-color: var(--neon-purple);
+    box-shadow:
+      0 0 18px rgba(189, 0, 255, 0.5),
+      inset 0 0 12px rgba(189, 0, 255, 0.1);
+  }
+
+  .ticker-tape {
+    background: #000;
+    padding: 0.4rem 0;
+    overflow: hidden;
+    border-top: 2px solid #222;
+    position: relative;
+  }
+
+  .ticker-content {
+    display: inline-block;
+    white-space: nowrap;
+    font-size: clamp(10px, 2.2vw, 12px);
+    color: var(--neon-green);
+    letter-spacing: 0.05em;
+    animation: marquee 28s linear infinite;
+    padding-left: 100%;
+  }
+
+  @keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+  }
+
+  .ticker-content .ca {
+    color: var(--neon-cyan);
+    font-weight: bold;
+  }
+
+  @media (max-height: 700px) {
+    .cabinet {
+      height: 96vh;
+    }
+    .high-scores-panel {
+      padding: 0.3rem 0.6rem 0.15rem;
+    }
+    .crt-banner {
+      height: 28px;
+      font-size: 11px;
+    }
+  }
+
+  @media (max-width: 400px) {
+    .lever-assembly {
+      right: -4px;
+      width: 28px;
+    }
+    .lever-ball {
+      width: 22px;
+      height: 22px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ========== PHASE A: BOOTLOADER ========== -->
+<div id="system-bootloader">
+  <div class="boot-terminal" id="boot-terminal">
+    <div class="boot-line" data-text="WWB BIOS v1.9.88 — COSMIC ARCADE CORE"></div>
+    <div class="boot-line" data-text="[MEM] Mapping herd allocation tables... <span class='ok'>OK</span>"></div>
+    <div class="boot-line" data-text="[NET] Loading token contract 5T7V8epX... <span class='ok'>OK</span>"></div>
+    <div class="boot-line" data-text="[SYS] Analyzing herd stability metrics... <span class='info'>STABLE</span>"></div>
+    <div class="boot-line" data-text="[CRT] Calibrating scanline matrix... <span class='ok'>OK</span>"></div>
+    <div class="boot-line" data-text="[SEC] Verifying liquidity burn status... <span class='warn'>100% BURNED</span>"></div>
+  </div>
+  <div class="boot-progress-wrap">
+    <div class="boot-progress-bar" id="boot-bar"></div>
+  </div>
+  <button id="insert-coin-btn">INSERT COIN / START UP</button>
+</div>
+
+<!-- ========== MAIN ARCADE ========== -->
+<div id="arcade-scene" style="visibility: hidden;">
+  <div class="stars"></div>
+  <div class="desert-horizon"></div>
+
+  <div class="cabinet">
+    <div class="cabinet-header">
+      <h1>WILD WHITE BUFFALO</h1>
+      <div class="sub">$WWB • COSMIC ARCADE</div>
+    </div>
+
+    <div class="crt-bezel" id="crt-bezel">
+      <div class="screen-scanlines"></div>
+
+      <div class="crt-banner" id="crt-banner">CHASE THE WHITE BUFFALO</div>
+
+      <div class="high-scores-panel">
+        <div class="title">══ HIGH SCORES ══</div>
+        <div class="score-row">
+          <span class="rank">01</span>
+          <span class="label">TOTAL SUPPLY</span>
+          <span class="value">1,000,000,000</span>
+        </div>
+        <div class="score-row">
+          <span class="rank">02</span>
+          <span class="label">LIQUIDITY POOL</span>
+          <span class="value">100% BURNED</span>
+        </div>
+        <div class="score-row">
+          <span class="rank">03</span>
+          <span class="label">TX TAX</span>
+          <span class="value">0% FLAWLESS</span>
+        </div>
+      </div>
+
+      <div class="slot-machine-container">
+        <div class="reels-frame">
+          <div class="reel" id="reel1">
+            <div class="reel-inner">
+              <div class="symbol symbol-buffalo" data-sym="buffalo"></div>
+            </div>
+          </div>
+          <div class="reel" id="reel2">
+            <div class="reel-inner">
+              <div class="symbol symbol-sol" data-sym="sol"></div>
+            </div>
+          </div>
+          <div class="reel" id="reel3">
+            <div class="reel-inner">
+              <div class="symbol symbol-wild" data-sym="wild"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lever-assembly" id="lever" title="Pull lever to spin">
+          <div class="lever-ball"></div>
+          <div class="lever-rod"></div>
+          <div class="lever-base"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="control-desk">
+      <div class="desk-label">PLAYER CONTROL DECK</div>
+
+      <div class="token-dispenser">
+        <div class="input-cluster">
+          <label>SOL IN</label>
+          <input type="number" id="sol-in" min="0" step="0.01" placeholder="0.00" value="">
+        </div>
+        <div class="input-cluster">
+          <label>$WWB OUT</label>
+          <div class="led-out" id="wwb-out">0</div>
+        </div>
+        <button class="arcade-btn stamp" id="stamp-btn">STAMP<br>TOKENS</button>
+      </div>
+
+      <div class="radio-dispatch">
+        <button class="radio-btn twitter" id="btn-twitter">TWITTER DISPATCH</button>
+        <button class="radio-btn" id="btn-telegram">CAMPFIRE TELEGRAM</button>
+      </div>
+    </div>
+
+    <div class="ticker-tape">
+      <div class="ticker-content">
+        INSERT CA TO START: <span class="ca">5T7V8epXn2LeoyxqzkWa1pPStJGGQ2i3cQiUQvw8pump</span>
+        &nbsp;&nbsp;•&nbsp;&nbsp; WILD WHITE BUFFALO $WWB • 0% TAX • 100% LP BURNED • CHASE THE HERD
+        &nbsp;&nbsp;•&nbsp;&nbsp; INSERT CA TO START: <span class="ca">5T7V8epXn2LeoyxqzkWa1pPStJGGQ2i3cQiUQvw8pump</span>
+        &nbsp;&nbsp;•&nbsp;&nbsp;
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const bootloader = document.getElementById('system-bootloader');
+  const bootLines = document.querySelectorAll('.boot-line');
+  const bootBar = document.getElementById('boot-bar');
+  const insertBtn = document.getElementById('insert-coin-btn');
+  const arcadeScene = document.getElementById('arcade-scene');
+
+  let lineIndex = 0;
+  function showNextLine() {
+    if (lineIndex < bootLines.length) {
+      const line = bootLines[lineIndex];
+      line.innerHTML = line.getAttribute('data-text');
+      line.classList.add('visible');
+      lineIndex++;
+      setTimeout(showNextLine, 320);
+    } else {
+      setTimeout(() => {
+        bootBar.classList.add('loading');
+      }, 150);
+      setTimeout(() => {
+        insertBtn.classList.add('visible');
+      }, 2000);
+    }
+  }
+
+  setTimeout(showNextLine, 400);
+
+  insertBtn.addEventListener('click', () => {
+    bootloader.classList.add('fade-out');
+    arcadeScene.style.visibility = 'visible';
+    setTimeout(() => {
+      bootloader.remove();
+    }, 520);
+  });
+
+  const symbols = ['buffalo', 'sol', 'wild', 'blank'];
+  const symbolClasses = {
+    buffalo: 'symbol-buffalo',
+    sol: 'symbol-sol',
+    wild: 'symbol-wild',
+    blank: 'symbol-blank'
+  };
+
+  const reels = [
+    document.getElementById('reel1'),
+    document.getElementById('reel2'),
+    document.getElementById('reel3')
+  ];
+  const lever = document.getElementById('lever');
+  const crtBanner = document.getElementById('crt-banner');
+  const crtBezel = document.getElementById('crt-bezel');
+
+  let isSpinning = false;
+
+  function randomSymbol() {
+    const roll = Math.random();
+    if (roll < 0.32) return 'buffalo';
+    if (roll < 0.58) return 'sol';
+    if (roll < 0.78) return 'wild';
+    return 'blank';
+  }
+
+  function setReelSymbol(reelEl, sym) {
+    const inner = reelEl.querySelector('.reel-inner');
+    const div = document.createElement('div');
+    div.className = 'symbol ' + symbolClasses[sym];
+    div.dataset.sym = sym;
+    inner.innerHTML = '';
+    inner.appendChild(div);
+  }
+
+  function updateBanner(text, mode) {
+    crtBanner.textContent = text;
+    crtBanner.classList.remove('jackpot', 'combo');
+    if (mode) crtBanner.classList.add(mode);
+  }
+
+  lever.addEventListener('click', () => {
+    if (isSpinning) return;
+    isSpinning = true;
+
+    lever.classList.add('pulled');
+    setTimeout(() => lever.classList.remove('pulled'), 280);
+
+    reels.forEach(r => r.classList.add('spinning'));
+    updateBanner('SPINNING...', null);
+    crtBezel.classList.remove('jackpot-glow');
+
+    const spinInterval = setInterval(() => {
+      reels.forEach(r => setReelSymbol(r, randomSymbol()));
+    }, 100);
+
+    setTimeout(() => {
+      clearInterval(spinInterval);
+      reels.forEach(r => r.classList.remove('spinning'));
+
+      const results = reels.map(() => randomSymbol());
+      results.forEach((sym, i) => setReelSymbol(reels[i], sym));
+
+      const [a, b, c] = results;
+
+      if (a === b && b === c && a !== 'blank') {
+        updateBanner('JACKPOT! THE HERD MATCHED', 'jackpot');
+        crtBezel.classList.add('jackpot-glow');
+        setTimeout(() => crtBezel.classList.remove('jackpot-glow'), 700);
+      } else if (
+        (a === b && a !== 'blank') ||
+        (b === c && b !== 'blank') ||
+        (a === c && a !== 'blank')
+      ) {
+        updateBanner('COMBO BONUS UNLOCKED', 'combo');
+      } else {
+        updateBanner('CHASE THE WHITE BUFFALO', null);
+      }
+
+      isSpinning = false;
+    }, 1200);
+  });
+
+  const solIn = document.getElementById('sol-in');
+  const wwbOut = document.getElementById('wwb-out');
+  const RATE = 50000;
+
+  solIn.addEventListener('input', () => {
+    const val = parseFloat(solIn.value);
+    if (isNaN(val) || val < 0) {
+      wwbOut.textContent = '0';
+      return;
+    }
+    const tokens = Math.floor(val * RATE);
+    wwbOut.textContent = tokens.toLocaleString('en-US');
+  });
+
+  document.getElementById('stamp-btn').addEventListener('click', () => {
+    const ca = '5T7V8epXn2LeoyxqzkWa1pPStJGGQ2i3cQiUQvw8pump';
+    window.open('https://dexscreener.com/solana/' + ca, '_blank', 'noopener,noreferrer');
+  });
+
+  document.getElementById('btn-twitter').addEventListener('click', () => {
+    window.open('https://x.com/search?q=%24WWB%20OR%20%22Wild%20White%20Buffalo%22', '_blank', 'noopener,noreferrer');
+  });
+
+  document.getElementById('btn-telegram').addEventListener('click', () => {
+    window.open('https://t.me/', '_blank', 'noopener,noreferrer');
+  });
+
+  document.addEventListener('gesturestart', e => e.preventDefault());
+})();
+</script>
+</body>
+</html>
